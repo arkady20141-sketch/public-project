@@ -1,0 +1,44 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Extract Android project
+        run: unzip -q "GoreShooterAndroid (1).zip" -d android-src
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          wrapper="$(find android-src -type f -name gradlew -print -quit)"
+          if [[ -z "$wrapper" ]]; then
+            echo "Could not find gradlew in the extracted Android project." >&2
+            exit 1
+          fi
+          project_dir="$(dirname "$wrapper")"
+          cd "$project_dir"
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: android-src/**/build/outputs/apk/**/*.apk
+          if-no-files-found: error
